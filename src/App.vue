@@ -16,6 +16,8 @@ const currentPage = computed(() => {
   if (path === '/shopping') return 'shopping'
   if (path === '/map') return 'map'
   if (path === '/calendar') return 'calendar'
+  if (path === '/words') return 'words'
+  if (path === '/idioms') return 'idioms'
   return ''
 })
 
@@ -27,18 +29,28 @@ function closeModal() {
   showAddModal.value = false
 }
 
-function handleAddNote(noteData: { text: string, date?: string, page: string }) {
+function handleAddNote(noteData: { text?: string, date?: string, english?: string, japanese?: string, chinese?: string, emoji?: string, page: string }) {
   // ページ情報に基づいて適切なページにノートを追加
   switch (noteData.page) {
     case 'shopping':
-      notesStore.addShoppingNote(noteData.text)
+      if (noteData.text) notesStore.addShoppingNote(noteData.text)
       break
     case 'map':
-      notesStore.addMapNote(noteData.text)
+      if (noteData.text) notesStore.addMapNote(noteData.text)
       break
     case 'calendar':
-      if (noteData.date) {
+      if (noteData.text && noteData.date) {
         notesStore.addCalendarNote(noteData.text, new Date(noteData.date), 1)
+      }
+      break
+    case 'words':
+      if (noteData.english && noteData.japanese && noteData.chinese) {
+        notesStore.addWord(noteData.english, noteData.japanese, noteData.chinese, noteData.emoji ?? '')
+      }
+      break
+    case 'idioms':
+      if (noteData.emoji && noteData.chinese && noteData.japanese) {
+        notesStore.addIdiom(noteData.emoji, noteData.chinese, noteData.japanese)
       }
       break
   }

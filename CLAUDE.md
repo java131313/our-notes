@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-"Our Notes" is a shared note-taking application built as a Progressive Web App (PWA) deployed on Cloudflare. The application features a mobile-first design with a native app-like UI, providing three distinct note categories: Shopping, Map, and Calendar notes.
+"Our Notes" is a shared note-taking application built as a Progressive Web App (PWA) deployed on Cloudflare. The application features a mobile-first design with a native app-like UI, providing five distinct note categories: Shopping, Map, Calendar, Words, and Idioms quiz.
 
 ## Architecture
 
@@ -23,10 +23,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **API**: RESTful API with CRUD operations for three note types
 
 ### Database Schema
-Three main tables in `schema.sql`:
+Five main tables in `schema.sql`:
 - `shopping_notes` (id, text, created_at)
 - `map_notes` (id, text, created_at)  
 - `calendar_notes` (id, text, date, person, created_at)
+- `words` (id, english, japanese, chinese, created_at)
+- `idioms` (id, emoji, chinese, japanese, created_at) — seeded with 489 built-in entries via `seed/idioms.sql` (regenerate with `node seed/build-seed.cjs` from `.tmp-idioms/batch-*.json`)
 
 ## Key Components
 
@@ -95,6 +97,8 @@ npx wrangler pages deploy dist --project-name our-notes
 - **Shopping Notes**: Simple text-based notes for shopping lists
 - **Map Notes**: Location-based notes for places and directions
 - **Calendar Notes**: Date-specific notes with person assignment (1 or 2)
+- **Words Notes**: Vocabulary cards with English/Japanese/Chinese translations and tap-to-reveal study mode
+- **Idioms Quiz**: Emoji-to-idiom guessing game with Chinese/Japanese yojijukugo answers, session scoring, and answer reveal; idiom data is lazily fetched when the page opens (large dataset)
 
 ### UI Patterns
 - Mobile-first responsive design
@@ -117,4 +121,4 @@ All endpoints follow RESTful conventions:
 - PUT `/api/{type}-notes/:id` - Update note
 - DELETE `/api/{type}-notes/:id` - Delete note
 
-Where `{type}` is: `shopping`, `map`, or `calendar`
+Where `{type}` is: `shopping`, `map`, `calendar`, `words`, or `idioms`

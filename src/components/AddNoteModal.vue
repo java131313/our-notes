@@ -6,9 +6,13 @@ const props = defineProps<{
   currentPage: string;
   noteToEdit?: {
     id: string;
-    text: string;
+    text?: string;
     date?: string;
     person?: number;
+    english?: string;
+    japanese?: string;
+    chinese?: string;
+    emoji?: string;
   };
 }>();
 
@@ -17,6 +21,13 @@ const emit = defineEmits(["close", "addNote", "updateNote"]);
 const noteText = ref("");
 const selectedDate = ref(new Date().toISOString().split("T")[0]);
 const selectedPerson = ref(1);
+const wordEnglish = ref("");
+const wordJapanese = ref("");
+const wordChinese = ref("");
+const wordEmoji = ref("");
+const idiomEmoji = ref("");
+const idiomChinese = ref("");
+const idiomJapanese = ref("");
 const personLabels = {
   1: import.meta.env.VITE_PERSON_LABEL_1,
   2: import.meta.env.VITE_PERSON_LABEL_2
@@ -25,15 +36,56 @@ const personLabels = {
 // 編集モードかどうかを計算
 const isEditMode = computed(() => !!props.noteToEdit);
 
+// 送信可能かどうか（単語・四字熟語ページは3項目すべて必須）
+const canSubmit = computed(() => {
+  if (props.currentPage === "words") {
+    return !!(
+      wordEnglish.value.trim() &&
+      wordJapanese.value.trim() &&
+      wordChinese.value.trim()
+    );
+  }
+  if (props.currentPage === "idioms") {
+    return !!(
+      idiomEmoji.value.trim() &&
+      idiomChinese.value.trim() &&
+      idiomJapanese.value.trim()
+    );
+  }
+  return !!noteText.value.trim();
+});
+
 // 編集モードの場合は初期値を設定
 watch(() => props.noteToEdit, (newNote) => {
   if (newNote) {
-    noteText.value = newNote.text;
+    noteText.value = newNote.text || "";
     if (newNote.date) {
       selectedDate.value = newNote.date;
     }
     if (newNote.person !== undefined) {
       selectedPerson.value = newNote.person;
+    }
+    if (newNote.english !== undefined) {
+      wordEnglish.value = newNote.english;
+    }
+    if (newNote.japanese !== undefined) {
+      wordJapanese.value = newNote.japanese;
+    }
+    if (newNote.chinese !== undefined) {
+      wordChinese.value = newNote.chinese;
+    }
+    if (newNote.emoji !== undefined) {
+      wordEmoji.value = newNote.emoji;
+    }
+    if (newNote.emoji !== undefined) {
+      idiomEmoji.value = newNote.emoji;
+    }
+    // 四字熟語の中国語・日本語はnoteToEditのchinese/japaneseを流用
+    if (newNote.chinese !== undefined) {
+      idiomChinese.value = newNote.chinese;
+    }
+    if (newNote.japanese !== undefined) {
+      idiomJapanese.value = newNote.japanese;
     }
   }
 }, { immediate: true });
@@ -43,19 +95,67 @@ const modalTitle = computed(() => {
   const baseTitle = {
     shopping: "買うもの",
     map: "行きたい場所",
-    calendar: "予定"
+    calendar: "予定",
+    words: "単語",
+    idioms: "四字熟語"
   }[props.currentPage] || "メモ";
   return isEditMode.value ? `${baseTitle}を更新` : `${baseTitle}を追加`;
 });
 
-function closeModal() {
+function resetForm() {
   noteText.value = "";
   selectedDate.value = new Date().toISOString().split("T")[0];
   selectedPerson.value = 1;
+  wordEnglish.value = "";
+  wordJapanese.value = "";
+  wordChinese.value = "";
+  wordEmoji.value = "";
+  idiomEmoji.value = "";
+  idiomChinese.value = "";
+  idiomJapanese.value = "";
+}
+
+function closeModal() {
+  resetForm();
   emit("close");
 }
 
 function handleNote() {
+  if (!canSubmit.value) return;
+
+  if (props.currentPage === "words") {
+    const payload = {
+      page: props.currentPage,
+      english: wordEnglish.value.trim(),
+      japanese: wordJapanese.value.trim(),
+      chinese: wordChinese.value.trim(),
+      emoji: wordEmoji.value.trim()
+    };
+    if (isEditMode.value && props.noteToEdit) {
+      emit("updateNote", { id: props.noteToEdit.id, ...payload });
+    } else {
+      emit("addNote", payload);
+    }
+    closeModal();
+    return;
+  }
+
+  if (props.currentPage === "idioms") {
+    const payload = {
+      page: props.currentPage,
+      emoji: idiomEmoji.value.trim(),
+      chinese: idiomChinese.value.trim(),
+      japanese: idiomJapanese.value.trim()
+    };
+    if (isEditMode.value && props.noteToEdit) {
+      emit("updateNote", { id: props.noteToEdit.id, ...payload });
+    } else {
+      emit("addNote", payload);
+    }
+    closeModal();
+    return;
+  }
+
   if (!noteText.value.trim()) return;
 
   if (isEditMode.value && props.noteToEdit) {
@@ -92,9 +192,6 @@ function handleNote() {
     }
   }
 
-  noteText.value = "";
-  selectedDate.value = new Date().toISOString().split("T")[0];
-  selectedPerson.value = 1;
   closeModal();
 }
 </script>
@@ -121,7 +218,34 @@ function handleNote() {
             </v-col>
           </v-row>
 
-          <v-row>
+          <v-row v-if="currentPage === 'words'">
+            <v-col cols="12">
+              <v-text-field v-model="wordEnglish" label="英語" placeholder="apple" variant="outlined" density="comfortable" hide-details="auto"></v-text-field>
+            </v-col>
+            <v-col cols="12">
+              <v-text-field v-model="wordEmoji" label="絵文字（任意）" placeholder="🍎" variant="outlined" density="comfortable" hide-details="auto"></v-text-field>
+            </v-col>
+            <v-col cols="12">
+              <v-text-field v-model="wordJapanese" label="日本語" placeholder="りんご" variant="outlined" density="comfortable" hide-details="auto"></v-text-field>
+            </v-col>
+            <v-col cols="12">
+              <v-text-field v-model="wordChinese" label="中国語" placeholder="苹果" variant="outlined" density="comfortable" hide-details="auto"></v-text-field>
+            </v-col>
+          </v-row>
+
+          <v-row v-if="currentPage === 'idioms'">
+            <v-col cols="12">
+              <v-text-field v-model="idiomEmoji" label="絵文字" placeholder="🐍 🖌️ 🦶" variant="outlined" density="comfortable" hide-details="auto"></v-text-field>
+            </v-col>
+            <v-col cols="12">
+              <v-text-field v-model="idiomChinese" label="中国語の四字熟語" placeholder="画蛇添足" variant="outlined" density="comfortable" hide-details="auto"></v-text-field>
+            </v-col>
+            <v-col cols="12">
+              <v-text-field v-model="idiomJapanese" label="日本語の四字熟語" placeholder="画蛇添足" variant="outlined" density="comfortable" hide-details="auto"></v-text-field>
+            </v-col>
+          </v-row>
+
+          <v-row v-if="currentPage !== 'words' && currentPage !== 'idioms'">
             <v-col cols="12">
               <v-text-field v-model="noteText" :label="currentPage === 'calendar' ? '予定' : 'メモ'" :placeholder="currentPage === 'calendar' ? '予定を入力してください' : 'メモを入力してください'" variant="outlined" density="comfortable" hide-details="auto" @keyup.enter="handleNote"></v-text-field>
             </v-col>
@@ -132,7 +256,7 @@ function handleNote() {
       <v-card-actions class="pa-4 pt-0">
         <v-spacer></v-spacer>
         <v-btn color="grey-darken-1" variant="text" @click="closeModal"> キャンセル </v-btn>
-        <v-btn color="primary" variant="elevated" :disabled="!noteText.trim()" @click="handleNote">
+        <v-btn color="primary" variant="elevated" :disabled="!canSubmit" @click="handleNote">
           {{ isEditMode ? '更新' : '追加' }}
         </v-btn>
       </v-card-actions>

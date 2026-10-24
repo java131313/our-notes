@@ -2,9 +2,10 @@ import { defineStore } from 'pinia'
 import { ref, onMounted } from 'vue'
 
 // APIエンドポイントのベースURL
-const API_BASE_URL = import.meta.env.PROD
-  ? 'https://our-notes-api.our-notes.workers.dev'
-  : 'http://localhost:8787'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  ?? (import.meta.env.PROD
+    ? 'https://our-notes-api.java13131305626.workers.dev'
+    : 'http://localhost:8787')
 
 // Define types
 export interface ShoppingNote {
@@ -24,6 +25,23 @@ export interface CalendarNote {
   text: string
   date: Date
   person: 1 | 2
+  createdAt: Date
+}
+
+export interface Word {
+  id: string
+  english: string
+  japanese: string
+  chinese: string
+  emoji: string
+  createdAt: Date
+}
+
+export interface Idiom {
+  id: string
+  emoji: string
+  chinese: string
+  japanese: string
   createdAt: Date
 }
 
@@ -48,12 +66,31 @@ interface ApiCalendarNote {
   created_at: string
 }
 
+interface ApiWord {
+  id: string
+  english: string
+  japanese: string
+  chinese: string
+  emoji: string | null
+  created_at: string
+}
+
+interface ApiIdiom {
+  id: string
+  emoji: string
+  chinese: string
+  japanese: string
+  created_at: string
+}
+
 // Create store
 export const useNotesStore = defineStore('notes', () => {
   // State
   const shoppingNotes = ref<ShoppingNote[]>([])
   const mapNotes = ref<MapNote[]>([])
   const calendarNotes = ref<CalendarNote[]>([])
+  const words = ref<Word[]>([])
+  const idioms = ref<Idiom[]>([])
   const isEditMode = ref(false)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -130,6 +167,56 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
+  async function fetchWords() {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/words`)
+      if (!response.ok) throw new Error('Failed to fetch words')
+
+      const data = await response.json() as ApiWord[]
+      words.value = data.map(word => ({
+        id: word.id,
+        english: word.english,
+        japanese: word.japanese,
+        chinese: word.chinese,
+        emoji: word.emoji ?? '',
+        createdAt: new Date(word.created_at)
+      }))
+    } catch (err) {
+      console.error('Error fetching words:', err)
+      error.value = err instanceof Error ? err.message : 'Unknown error'
+      // エラー時はローカルストレージからフォールバック
+      loadFromLocalStorage()
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function fetchIdioms() {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/idioms`)
+      if (!response.ok) throw new Error('Failed to fetch idioms')
+
+      const data = await response.json() as ApiIdiom[]
+      idioms.value = data.map(idiom => ({
+        id: idiom.id,
+        emoji: idiom.emoji,
+        chinese: idiom.chinese,
+        japanese: idiom.japanese,
+        createdAt: new Date(idiom.created_at)
+      }))
+    } catch (err) {
+      console.error('Error fetching idioms:', err)
+      error.value = err instanceof Error ? err.message : 'Unknown error'
+      // エラー時はローカルストレージからフォールバック
+      loadFromLocalStorage()
+    } finally {
+      isLoading.value = false
+    }
+  }
   // Actions
   async function addShoppingNote(text: string) {
     try {
@@ -238,6 +325,88 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
+  async function addWord(english: string, japanese: string, chinese: string, emoji = '') {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/words`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ english, japanese, chinese, emoji })
+      })
+
+      if (!response.ok) throw new Error('Failed to add word')
+
+      const data = await response.json() as ApiWord
+      const newWord: Word = {
+        id: data.id,
+        english: data.english,
+        japanese: data.japanese,
+        chinese: data.chinese,
+        emoji: data.emoji ?? emoji,
+        createdAt: new Date(data.created_at)
+      }
+
+      words.value.push(newWord)
+      saveToLocalStorage() // バックアップとしてローカルにも保存
+    } catch (err) {
+      console.error('Error adding word:', err)
+      error.value = err instanceof Error ? err.message : 'Unknown error'
+
+      // エラー時はローカルにのみ保存
+      const word: Word = {
+        id: Date.now().toString(),
+        english,
+        japanese,
+        chinese,
+        emoji,
+        createdAt: new Date()
+      }
+      words.value.push(word)
+      saveToLocalStorage()
+    }
+  }
+
+  async function addIdiom(emoji: string, chinese: string, japanese: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/idioms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ emoji, chinese, japanese })
+      })
+
+      if (!response.ok) throw new Error('Failed to add idiom')
+
+      const data = await response.json() as ApiIdiom
+      const newIdiom: Idiom = {
+        id: data.id,
+        emoji: data.emoji,
+        chinese: data.chinese,
+        japanese: data.japanese,
+        createdAt: new Date(data.created_at)
+      }
+
+      idioms.value.push(newIdiom)
+      saveToLocalStorage() // バックアップとしてローカルにも保存
+    } catch (err) {
+      console.error('Error adding idiom:', err)
+      error.value = err instanceof Error ? err.message : 'Unknown error'
+
+      // エラー時はローカルにのみ保存
+      const idiom: Idiom = {
+        id: Date.now().toString(),
+        emoji,
+        chinese,
+        japanese,
+        createdAt: new Date()
+      }
+      idioms.value.push(idiom)
+      saveToLocalStorage()
+    }
+  }
+
   async function deleteShoppingNote(id: string) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/shopping-notes/${id}`, {
@@ -300,6 +469,50 @@ export const useNotesStore = defineStore('notes', () => {
       
       // エラー時もUIからは削除
       calendarNotes.value = calendarNotes.value.filter(note => note.id !== id)
+      saveToLocalStorage()
+    }
+  }
+
+  async function deleteWord(id: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/words/${id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok && response.status !== 404) {
+        throw new Error('Failed to delete word')
+      }
+
+      words.value = words.value.filter(word => word.id !== id)
+      saveToLocalStorage() // バックアップとしてローカルにも保存
+    } catch (err) {
+      console.error('Error deleting word:', err)
+      error.value = err instanceof Error ? err.message : 'Unknown error'
+
+      // エラー時もUIからは削除
+      words.value = words.value.filter(word => word.id !== id)
+      saveToLocalStorage()
+    }
+  }
+
+  async function deleteIdiom(id: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/idioms/${id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok && response.status !== 404) {
+        throw new Error('Failed to delete idiom')
+      }
+
+      idioms.value = idioms.value.filter(idiom => idiom.id !== id)
+      saveToLocalStorage() // バックアップとしてローカルにも保存
+    } catch (err) {
+      console.error('Error deleting idiom:', err)
+      error.value = err instanceof Error ? err.message : 'Unknown error'
+
+      // エラー時もUIからは削除
+      idioms.value = idioms.value.filter(idiom => idiom.id !== id)
       saveToLocalStorage()
     }
   }
@@ -377,6 +590,54 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
+  async function updateWord(id: string, english: string, japanese: string, chinese: string, emoji = '') {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/words/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ english, japanese, chinese, emoji }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update word');
+
+      // 更新後のデータを取得
+      await fetchWords();
+    } catch (err) {
+      console.error('Error updating word:', err);
+      error.value = err instanceof Error ? err.message : 'Unknown error';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function updateIdiom(id: string, emoji: string, chinese: string, japanese: string) {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/idioms/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ emoji, chinese, japanese }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update idiom');
+
+      // 更新後のデータを取得
+      await fetchIdioms();
+    } catch (err) {
+      console.error('Error updating idiom:', err);
+      error.value = err instanceof Error ? err.message : 'Unknown error';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   function toggleEditMode() {
     isEditMode.value = !isEditMode.value
   }
@@ -386,12 +647,16 @@ export const useNotesStore = defineStore('notes', () => {
     localStorage.setItem('shoppingNotes', JSON.stringify(shoppingNotes.value))
     localStorage.setItem('mapNotes', JSON.stringify(mapNotes.value))
     localStorage.setItem('calendarNotes', JSON.stringify(calendarNotes.value))
+    localStorage.setItem('words', JSON.stringify(words.value))
+    localStorage.setItem('idioms', JSON.stringify(idioms.value))
   }
 
   function loadFromLocalStorage() {
     const savedShoppingNotes = localStorage.getItem('shoppingNotes')
     const savedMapNotes = localStorage.getItem('mapNotes')
     const savedCalendarNotes = localStorage.getItem('calendarNotes')
+    const savedWords = localStorage.getItem('words')
+    const savedIdioms = localStorage.getItem('idioms')
 
     if (savedShoppingNotes) {
       shoppingNotes.value = JSON.parse(savedShoppingNotes)
@@ -402,35 +667,52 @@ export const useNotesStore = defineStore('notes', () => {
     if (savedCalendarNotes) {
       calendarNotes.value = JSON.parse(savedCalendarNotes)
     }
+    if (savedWords) {
+      words.value = JSON.parse(savedWords)
+    }
+    if (savedIdioms) {
+      idioms.value = JSON.parse(savedIdioms)
+    }
   }
 
-  // 初期化時にデータを取得
+  // 初期化時にデータを取得（idiomsは件数が多いためページ表示時に遅延取得）
   onMounted(() => {
     loadFromLocalStorage()
     fetchShoppingNotes()
     fetchMapNotes()
     fetchCalendarNotes()
+    fetchWords()
   })
 
   return {
     shoppingNotes,
     mapNotes,
     calendarNotes,
+    words,
+    idioms,
     isEditMode,
     isLoading,
     error,
     fetchShoppingNotes,
     fetchMapNotes,
     fetchCalendarNotes,
+    fetchWords,
+    fetchIdioms,
     addShoppingNote,
     addMapNote,
     addCalendarNote,
+    addWord,
+    addIdiom,
     deleteShoppingNote,
     deleteMapNote,
     deleteCalendarNote,
+    deleteWord,
+    deleteIdiom,
     updateShoppingNote,
     updateMapNote,
     updateCalendarNote,
+    updateWord,
+    updateIdiom,
     toggleEditMode,
     saveToLocalStorage,
     loadFromLocalStorage,

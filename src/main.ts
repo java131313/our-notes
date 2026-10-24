@@ -16,6 +16,8 @@ import App from './App.vue'
 import ShoppingPage from './pages/ShoppingPage.vue'
 import MapPage from './pages/MapPage.vue'
 import CalendarPage from './pages/CalendarPage.vue'
+import WordsPage from './pages/WordsPage.vue'
+import IdiomsPage from './pages/IdiomsPage.vue'
 
 // Create router
 const router = createRouter({
@@ -25,6 +27,8 @@ const router = createRouter({
     { path: '/shopping', component: ShoppingPage },
     { path: '/map', component: MapPage },
     { path: '/calendar', component: CalendarPage },
+    { path: '/words', component: WordsPage },
+    { path: '/idioms', component: IdiomsPage },
   ]
 })
 

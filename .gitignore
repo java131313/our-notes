@@ -46,5 +46,8 @@ wrangler.toml
 # Sensitive files
 public/auth.js
 
+# Data generation temp files
+.tmp-idioms/
+
 ## Deploy
 Deploy.md
